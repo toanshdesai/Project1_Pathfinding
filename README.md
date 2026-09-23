@@ -1,143 +1,82 @@
 # Project1_Pathfinding
 
-BFS, Dijkstra, and A\* implemented from scratch in Python, animated with PyGame.
-The grid supports **weighted terrain** (normal = 1, mud = 5, wall = impassable),
-which is what makes the differences between the three algorithms visible.
+This project is a visual comparison of three pathfinding algorithms: BFS, Dijkstra, and A* using a Manhattan-based heuristic.
+It is written in Python and uses PyGame for graphics.
 
-## Running it
+The grid uses weighted terrain. Normal cells cost 1, mud cells cost 5, and walls are infinity.
+## How A* works
 
-```
-pip install pygame
-python main.py
-```
+f(n) = g(n) + h(n)
 
-Python 3.12.
+Every cell gets two numbers. **g** is the cost of getting there from the start,
+and **h** is the guess of the cost left to reach the goal. Their sum is **f**.
 
-| Key / Input | Action |
-|---|---|
-| Left click / drag | Cycle cells: normal (1) → mud (5) → wall → normal |
-| Right click | Place / move the goal |
-| `B` / `D` / `A` | Select BFS / Dijkstra / A\* (idle only) |
-| `SPACE` | Run the selected algorithm |
-| `R` | Reset the search, keep the maze |
-| `M` | Load the "Toll Road" demo maze |
-| `C` | Clear the maze |
+A* starts at the start cell and repeatedly takes the cell with the lowest f, 
+since that one looks most promising to reaching the goal. It adds that cell's neighbors to a priority 
+queue with their own f values, and marks each neighbor with the cell it came from. 
+Once the goal comes out of the queue(has been found), A* walks the chain backwards to build the path.
 
-Start is fixed bottom-left. Editing locks during a search — press `R` to unlock.
+BFS takes whichever cell it found first, so it finds the fewest steps but ignores cost.
+Dijkstra takes the cell with the lowest g, so it finds the cheapest path but still searches in every direction.
+**A\* when h = 0 is Dijkstra**, so the Dijkstra mode is the A* code called with a heuristic of 0.
 
-**Colors:** green = start, purple = goal, brown = mud, black = wall,
-light green = frontier, pink = explored, blue = final path.
+## Design notes
 
-## How the three algorithms relate
+- Every cell stores a cost, not a type. A wall is `math.inf`, which is too expensive and A* does not need a wall check
+- The heuristic is Manhattan distance, `abs(dx) + abs(dy)`.
+Movement is 4-directional, so using Manhattan gives you exactly the fewest moves possible.
+It never guesses too high, which is what keeps A* optimal, and it is the highest safe guess,
+so A* explores the fewest cells. Euclidean is also safe but guesses lower (sqrt(2) when Manhattan gives 2),
+so A* would explore more.
+- A* checks whether it reached the goal when a cell is popped(enters closed set), not when it is discovered(when added to the open set).
+A cell found early through mud can be reached more cheaply later, so its cost and parent get rewritten when that happens.
+- `bfs.py` and `astar.py` contain no PyGame code, so both can be tested from the terminal with `python bfs.py` or `python astar.py`.
 
-Same search skeleton, different rule for which cell to expand next.
-**g** = true cost from the start; **h** = estimated cost to the goal.
+## Files
 
-| Algorithm | Expands by | Optimal? | Cost-aware? |
-|---|---|---|---|
-| BFS | insertion order (FIFO queue) | Only on unweighted grids | No |
-| Dijkstra | lowest **g** | Yes | Yes |
-| A\* | lowest **g + h** | Yes, if h is admissible | Yes |
+- `main.py` — PyGame UI, grid drawing, mouse and keyboard controls
+- `bfs.py` — BFS, and the shared `neighbors()` + `reconstruct()` methods
+- `astar.py` — A* and Dijkstra, heuristics, terminal tests
 
-BFS finds the *fewest steps*, which on a weighted grid is not the cheapest
-path — it can't see cost at all. Dijkstra adds cost awareness but has no sense
-of direction, so it floods outward evenly. A\* adds direction: `f = g + h`
-biases expansion toward the goal, returning Dijkstra's optimal path for far
-less work, provided h is **admissible** (never overestimates).
+## To use
 
-Consequence used directly here: **A\* with `h = 0` is Dijkstra** (`f = g + 0 = g`).
-Dijkstra isn't implemented separately — it's `astar_step` called with `zero_h`.
+Run `main.py` with Python 3.12 and PyGame installed (`pip install pygame`).
 
-## Heuristic choice
+The start is the green cell in the bottom-left corner.
 
-**Manhattan distance**: `abs(dr) + abs(dc)`.
+- Click or click and drag to cycle cells: normal → mud → wall → normal
+- Right click to move the goal
+- `B` / `A` / `D` / `E` — pick BFS, A*, Dijkstra's, or Euclidean Heuristic, shown in the header
+- `SPACE` — run the selected algorithm
+- `R` — reset the search
+- `M` — load the test maze
+- `C` — clear the grid, reset back to starting grid
 
-Movement is 4-directional and minimum step cost is 1, so Manhattan is exactly
-the true minimum step count between two cells. That makes it both *admissible*
-(never overestimates — mud only makes reality more expensive, which is allowed)
-and *tight* (the largest admissible estimate available here, so A\* gets maximum
-discriminating power). Euclidean is also admissible but strictly smaller — for
-a cell 10 rows and 10 columns away it says 14.1 where Manhattan correctly says
-20 — so it explores more cells for the same answer. Euclidean only becomes
-correct once diagonal movement is allowed.
+The terminal window prints the cost, steps, and cells explored after each successful run.
 
-## Results — "Toll Road" maze (`M` key)
+## Test Results
 
-Mud band (cost 5) across columns 10–17 below row 8, clean corridor above, goal
-at (15, 27). Every monotone route is 41 steps; the cheap route detours 16 steps
-over the mud instead of paying the 8-cell toll.
+Test maze (`M` key): a band of mud between the start and the goal, with a clear route above it.
 
 | Algorithm | Path cost | Steps | Cells explored |
-|---|---|---|---|
-| A\* | 57 | 57 | 400 |
-| Dijkstra | 57 | 57 | 796 |
-| BFS | **73** | **41** | 749 |
+|-----------|-----------|-------|----------------|
+| BFS       | 73        | 41    | 749            |
+| Dijkstra  | 57        | 57    | 796            |
+| A*        | 57        | 57    | 400            |
 
-1. **BFS's path is the shortest and the most expensive** — 41 steps, cost 73,
-   straight through the mud. Fewest steps ≠ cheapest path.
-2. **Dijkstra and A\* agree on cost**, as they must; both are optimal, so they
-   can only differ in effort.
-3. **A\* did half of Dijkstra's work** for the identical result. That gap is
-   the heuristic.
+BFS took the fewest steps but the most expensive path, since it walked through 8 mud cells.
+Dijkstra and A* both found the cheapest path, but A* got there after exploring about half as many cells.
 
-### Unexpected finding: geometry matters
+Unexpected: on the empty beginning grid, all algorithms explore all the cells.
+I think this is because every cell returns the same f value. Moving the goal anywhere else makes the A* algorithm best again
 
-On an **empty** grid with start and goal at opposite corners, A\* explores all
-900 cells — no better than Dijkstra. Corner-to-corner, every cell lies on some
-monotone shortest path, so every cell's `f` ties at the same value. A heuristic
-that can't discriminate is functionally `h = 0`, and A\* degrades to Dijkstra.
-Moving the goal off-corner or adding any obstacle restores the advantage.
-**A heuristic's value depends on problem geometry, not just the formula.**
+## Limitations
 
-## Code structure
+- 4-directional movement only. Manhattan would overestimate with diagonal movement, so 8-d would need euclidean or Chebyshev instead.
+  - Euclidean would be an overestimation - shown in demonstration how it is less efficient
+- Fast mouse drags can skip cells, and when dragging, the transition from cell types can be confusing and fast
 
-```
-main.py    PyGame UI: rendering, events, animation loop
-bfs.py     neighbors(), bfs_step(), reconstruct()
-astar.py   heuristics, astar_step(), headless test harness
-```
-
-`main.py` imports the algorithm modules; they import nothing from it. Neither
-algorithm module contains PyGame code or global state — all data arrives as
-parameters. That's why `python bfs.py` and `python astar.py` run standalone
-tests, and why adding A\* required almost no UI changes.
-
-**Cells store cost, not type.** A wall is just `math.inf` — too expensive to
-ever enter — so the algorithms need no separate wall concept, and weighted
-terrain came for free.
-
-**One step per frame.** Search state lives outside the game loop; each frame
-advances it `STEPS_PER_FRAME` expansions. The step functions return
-`"running"` / `"done"` / `"no_path"`, which the caller assigns back into the
-search state, so the search stops itself by reporting.
-
-**A\* checks for the goal at pop time, not discovery time.** Correctness, not
-style: the goal may first be *discovered* via an expensive route while a
-cheaper one is still in the heap. Only when it's *popped* is its cost optimal.
-
-**A\* can revisit cells; BFS can't.** BFS's first arrival at a cell is always
-via a shortest route, so `visited` bans re-entry permanently. With weighted
-terrain that's false, so A\* tests `new_g < g.get(n, inf)` and rewrites the
-cell's cost and parent when it finds something cheaper.
-
-**Lazy deletion.** `heapq` can't update entries, so improved cells are pushed
-again and stale pops are discarded via the `closed` set — which doubles as the
-drawing data for explored cells.
-
-**Tie-breaking.** Heap entries are `(f, counter, cell)`; the counter breaks
-f-ties deterministically instead of falling through to comparing cell tuples.
-
-## Known limitations
-
-- **4-directional only.** Manhattan is inadmissible with diagonals (5 rows +
-  5 columns away is 5 diagonal moves, but Manhattan claims 10), so adding
-  8-directional movement requires switching to octile distance.
-- **Fast mouse drags skip cells**, since motion events sample the pointer
-  rather than tracing its path.
-- **Global state.** `main.py` carries ~14 module-level globals; bundling search
-  state into a class would remove the `global` statement entirely.
-
-## AI use and outside assistance
+## AI use
 
 **FlintK12:** https://app.flintk12.com/activities/a-pathfinding-h-26efda/sessions/dee4ad8b-1ceb-4a11-a89b-9f6538af0d01
 

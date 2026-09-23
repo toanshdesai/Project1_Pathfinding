@@ -12,8 +12,8 @@ def neighbors(grid, row, col):
     cols = len(grid[0])
 
     results = []
-
-    for dr, dc in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+    # determines if path prefers y-axis or x-axis
+    for dr, dc in [(0, -1), (0, 1), (-1, 0), (1, 0)]: # [(-1, 0), (1, 0), (0, -1), (0, 1)] would make final pathing prefer going along y-axis
         nr, nc = row + dr, col + dc
         if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] != WALL:
             results.append((nr, nc))

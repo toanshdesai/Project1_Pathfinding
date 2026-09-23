@@ -2,7 +2,7 @@
 #   Left click / drag : cycle cells  normal (cost 1) -> mud (cost 5) -> wall -> normal
 #   Right click       : place / move the goal cell
 #   Start cell        : fixed at bottom-left (green)
-#   B / A / D         : select BFS / A* / Dijkstra (only while idle)
+#   B / A / D / E     : select BFS / A* / Dijkstra / Euclidean Heuristic (only while idle)
 #   SPACE             : run the selected algorithm
 #   R                 : reset the search (keeps the maze; unlocks editing)
 #   C                 : clear the maze (resets all cells to normal)
@@ -158,6 +158,8 @@ def main():
                     else:               # astar and dijkstra share machinery
                         current_h = (astar.manhattan if algorithm == "astar"
                                      else astar.zero_h)
+                        if algorithm == "euclidean":
+                            current_h = astar.euclidean
                         open_heap = [(current_h(start, goal), 0, start)]
                         g_scores = {start: 0}
                         closed = set()
@@ -197,6 +199,9 @@ def main():
                 elif event.key == pygame.K_d and search_state == "idle":
                     algorithm = "dijkstra"
                     text = "Current Algorithm: Dijkstra"
+                elif event.key == pygame.K_e and search_state == "idle":
+                    algorithm = "euclidean"
+                    text = "Current Algorithm: Euclidean"
 
         # ---- advance the search (between events and drawing) ----
         if search_state == "running":

@@ -10,6 +10,8 @@ WALL = math.inf
 def manhattan(cell, goal):
     return abs(cell[0] - goal[0]) + abs(cell[1] - goal[1])
 
+def euclidean(cell,goal):
+    return math.hypot(cell[0] - goal[0], cell[1] - goal[1])
 
 def zero_h(cell, goal):
     return 0        # A* with h=0 IS Dijkstra — free second algorithm
